@@ -11,6 +11,9 @@ library(shiny)
 library(readxl)
 library(fs)
 library(dplyr)
+library(ggplot2)
+library(stringr)
+library(tidyr)
 #i=1
 #vector_list <- list(agust$mon,agust$tue,agust$wed,agust$thur,agust$fri,agust$sat,agust$sun)
 #students <- c()
@@ -22,23 +25,19 @@ library(dplyr)
 #}
 # 管红林
 
-files <- list.files("data/") 
-
-
-for (file in files){
-  read_excel(file)
-}
 # Jan；Feb；Mar；Apr； May； Jun；Jul； Aug；Sept；Oct；Nov；Dec
 normal_students <- c( "王子怡","管红琳","王刘宇","薛雨杭","张萌","葛睿",
                       "周雪榕","郭益欣","付晓研","刘彤","焦宇","王爽","杜宇昂",
                       "刘文晗" ,"丁心","张露丹","孟祥月","郑焱华")
 new_cols <- c("type1","mon","tue","wed","thur","fri","sat","sun","type2")
-weekday_type_commm <- c("主院夜班","主院连班","层流夜班","浑南夜班","浑南连班","骨穿班")
-weekend_type_commm <- c("主院白班","层流白班","浑南夜班","浑南白班","层流夜班","主院夜班")
+weekday_type_commm <- c("主院连班","浑南连班","骨穿班")
+weekend_type_commm <- c("主院白班","层流白班","浑南白班")
+universe_type <- c("主院夜班","层流夜班","浑南夜班")
 
 get_hospital_timetalbe <- function(dir,new_cols = new_cols){
   aguddd <- read_excel(dir)
   month_data <- str_sub(dir,1,nchar(dir)-5)
+  month_data <- str_remove(month_data,pattern = "data/")
   colnames(aguddd) <- new_cols
   agust_clean <- aguddd %>% 
     filter(!is.na(type1) | !is.na(type2) ) %>% 
@@ -63,50 +62,74 @@ Batch_hospital_table <- function(root,new_cols = new_cols){
   df_total = data.table::rbindlist(dflist,fill = TRUE)
 }
 
-get_name_score <- function(df,name = "王子怡",mod = c("weekday","weekend"),type){
+get_name_score <- function(df,name = "王子怡",mod = c("weekday","weekend","universe"),type,month_data){
+  df <- df %>% 
+    filter(month == month_data)
   if (mod == "weekday"){
     df <- df %>% 
       select(-all_of(c("sat","sun","weekend_type"))) %>% 
       filter(weekday_type == type)
     #row_level <- levels(factor(df$weekday_type))
     
-  }else{
+  }else if(mod == "weekend"){
     df <- df %>% 
       select(all_of(c("weekend_type","sat","sun"))) %>% 
       filter(weekend_type == type)
+  } else {
+    df <- df %>% 
+      select(-weekend_type) %>% 
+      filter(weekday_type == type)
   }
+  df <- as.data.frame(df)
+  score = 0
   for (i in 1:ncol(df)){
-    score = 0
     for (a in 1:nrow(df)) {
-      if (str_detect(df[a,i],name)){
+      if (is.na(df[a,i])){
+        score_temp = score + 0
+        score = score_temp
+      }else if(str_detect(df[a,i],name) == TRUE){
         score_temp = score + 1
         score = score_temp
       } else {
-        next
+        score_temp = score + 0
+        score = score_temp
       }
     }
   }
   return(score)
 }
 
-
-
-
+week_summary <- function(batch_table,name_id,mod,month_data_list,types){
+  weekdaysscore <- list()
+  for (months_item in month_data_list) {
+    temp <- rep(0,length(types))
+    for (i in 1:length(types)) {
+      temp[i] <- get_name_score(batch_table,name = name_id,mod = mod,
+                                type = types[i],month_data = months_item)
+    }
+    
+    weekdaysscore[[months_item]] <- data.frame(types = types,
+                           temp = temp) %>% 
+      rename(months_item = temp)
+  }
+  weekdaysscore <- do.call("cbind",weekdaysscore) %>% 
+    select(paste0(month_data_list[1],".types"),ends_with("months_item"))
+  names(weekdaysscore) <- c("types",month_data_list)
+  return(weekdaysscore)
+}
 
 # Define UI for application that draws a histogram
 ui <- fluidPage(
 
     # Application title
-    titlePanel("Old Faithful Geyser Data"),
+    titlePanel("The KPI Panel in Hematology"),
 
     # Sidebar with a slider input for number of bins 
     sidebarLayout(
         sidebarPanel(
-            sliderInput("bins",
-                        "Number of bins:",
-                        min = 1,
-                        max = 50,
-                        value = 30)
+            textInput("name_id",
+                        "Whoes KPI you want to see:",
+                        "王子怡")
         ),
 
         # Show a plot of the generated distribution
@@ -118,16 +141,45 @@ ui <- fluidPage(
 
 # Define server logic required to draw a histogram
 server <- function(input, output) {
+  
+  batch_table <- reactive({
+    Batch_hospital_table("data/",new_cols = new_cols)
+  })
+  
+  month_data_list <- reactive({
+    list.files("data/") %>% str_remove(".xlsx")
+  })
+  
+  weekday_summary <- reactive({
+    
+    weekday_summary <- week_summary(batch_table(),name_id = input$name_id,mod ="weekday" ,
+                 month_data_list = month_data_list() ,types = weekday_type_commm)
+    
+  })
+  
+  weekend_summary <- reactive({
+    
+    weekend_summary <- week_summary(batch_table(),name_id = input$name_id,mod ="weekend" ,
+                 month_data_list = month_data_list() ,types = weekend_type_commm)
+  })
+  
+  weeks_universe <- reactive({
+    
+    weeks_universe <- week_summary(batch_table(),name_id = input$name_id,mod ="universe" ,
+                 month_data_list = month_data_list() ,types = universe_type)
+  })
 
     output$distPlot <- renderPlot({
-        # generate bins based on input$bins from ui.R
-        x    <- faithful[, 2]
-        bins <- seq(min(x), max(x), length.out = input$bins + 1)
-
-        # draw the histogram with the specified number of bins
-        hist(x, breaks = bins, col = 'darkgray', border = 'white',
-             xlab = 'Waiting time to next eruption (in mins)',
-             main = 'Histogram of waiting times')
+        df_templist <- list(weeks_universe(),
+                            weekend_summary(),
+                            weekday_summary())
+        df <- data.table::rbindlist(df_templist,fill = TRUE) %>% 
+          gather(key = "month", value = "value", -types)
+        
+        ggplot(df, aes(x = month, y = value, fill = types)) +
+          geom_bar(stat = "identity") +
+          labs(x = "month", y = "Values", title = "Monthly Data by Type") +
+          theme_minimal()
     })
 }
 
