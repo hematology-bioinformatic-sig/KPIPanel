@@ -189,6 +189,9 @@ server <- function(input, output) {
   })
   
   rank_all <- reactive({
+    withProgress(message = 'Calculating ...',
+                 detail = 'This may take a while...', value = 1, {
+                   
     rank_df <- list()
     for (name_id in normal_students) {
       weekday_summary <- week_summary(batch_table(),name_id = name_id,mod ="weekday" ,
@@ -204,6 +207,7 @@ server <- function(input, output) {
         gather(key = "month", value = "value", -types,-id)
     }
     rank_df <- data.table::rbindlist(rank_df,fill = TRUE)
+                 })
   })
   
   personal_table <- reactive({
