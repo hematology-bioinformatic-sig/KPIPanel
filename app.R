@@ -9,14 +9,14 @@
 
 library(shiny)
 library(readxl)
-library(fs)
+#library(fs)
 library(dplyr)
 library(ggplot2)
 library(stringr)
 library(tidyr)
 library(showtext)
 library(DT)
-library(forcats)
+#library(forcats)
 library(janitor)
 library(plotly)
 showtext_auto(enable = TRUE)
@@ -147,11 +147,11 @@ ui <- fluidPage(
         sidebarPanel(
             textInput("name_id",
                         "Whoes KPI you want to see(for example):",
-                        "王子怡"),
+                        "杜宇昂"),
             selectInput("month_id",
                       "Which month you want to know:",
                       month_list,
-                      "aug")
+                      "sept")
         ),
 
         # Show a plot of the generated distribution
@@ -257,7 +257,8 @@ server <- function(input, output) {
     output$aboutme <- renderText({
       paste0("本应用目前由HBSig开发，旨在对每月及历史排班工作量进行可视化和数据分析，
              以供HBSig内部成员对于自身每月工作量进行评估和参考，数据来源于公开可获取数据（其中1月层流白班缺失），
-             由于算法的缺陷，节假日非周末白班会计算到连班中，对于原始数据存在的谬误（如原表格中出现错别字导致名字无法正确识别），亦如实呈现在分析结果中。")
+             由于算法的缺陷，节假日非周末白班会计算到连班中，对于原始数据存在的谬误（如原表格中出现错别字导致名字无法正确识别），亦如实呈现在分析结果中。
+             感谢CMPT的Dr.Xudong 为本项目的开发提供了OCR服务。")
     })
 }
 
