@@ -1,0 +1,29 @@
+name: Deploy to RStudio Connect
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    container:
+      image: rocker/verse:latest
+
+    steps:
+
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Install dependencies
+      run: install2.r --error rsconnect shinyWidgets shinythemes readxl fs dplyr tidyr stringr BH jpeg anytime
+
+    - name: Deploy to RStudio Connect
+      run: |
+        library(rsconnect)
+        rsconnect::setAccountInfo(name="${{ secrets.RSCONNECT_ACCOUNT }}", 
+                                  token="${{ secrets.RSCONNECT_TOKEN }}", 
+                                  secret="${{ secrets.RSCONNECT_SECRET }}")
+        rsconnect::deployApp(appDir = getwd())
+      shell: Rscript {0}
