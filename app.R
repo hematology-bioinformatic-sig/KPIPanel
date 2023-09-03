@@ -154,7 +154,9 @@ ui <- fluidPage(
             ),
             tabPanel(title = "具体数据", 
                      DTOutput("tables")
-            )
+            ),
+            tabPanel(title = "关于我",
+                     textOutput("aboutme"))
           )
           #plotOutput("distPlot"),
            #plotOutput("rankplot"),
@@ -238,6 +240,11 @@ server <- function(input, output) {
     output$tables <-renderDT({
       df <- rank_all() %>% 
         arrange(-value)
+    })
+    output$aboutme <- renderText({
+      paste0("本应用目前由HBSig开发，旨在对每月及历史排班工作量进行可视化和数据分析，
+             以供HBSig内部成员对于自身每月工作量进行评估和参考，数据来源于公开可获取数据，
+             对于原始数据存在的谬误，亦如实呈现在分析结果中。")
     })
 }
 
