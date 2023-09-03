@@ -134,7 +134,7 @@ ui <- fluidPage(
     sidebarLayout(
         sidebarPanel(
             textInput("name_id",
-                        "Whoes KPI you want to see:",
+                        "Whoes KPI you want to see(for example):",
                         "王子怡"),
             selectInput("month_id",
                       "Which month you want to know:",
@@ -236,7 +236,8 @@ server <- function(input, output) {
     })
     
     output$tables <-renderDT({
-      df <- rank_all()
+      df <- rank_all() %>% 
+        arrange(-value)
     })
 }
 
