@@ -17,6 +17,8 @@ library(tidyr)
 library(showtext)
 library(DT)
 library(forcats)
+library(janitor)
+library(plotly)
 showtext_auto(enable = TRUE)
 #i=1
 #vector_list <- list(agust$mon,agust$tue,agust$wed,agust$thur,agust$fri,agust$sat,agust$sun)
@@ -45,6 +47,7 @@ get_hospital_timetalbe <- function(dir,new_cols = new_cols){
   colnames(aguddd) <- new_cols
   agust_clean <- aguddd %>% 
     filter(!is.na(type1) | !is.na(type2) ) %>% 
+    mutate(type2 = replace_na(type2,"骨穿班")) %>% 
     filter(type2 != "日期" ) %>% 
     filter(type2 != "值班") %>% 
     mutate(weekday_type = ifelse(is.na(type1)& !is.na(type2),type2,type1)) %>% 
@@ -66,15 +69,22 @@ Batch_hospital_table <- function(root,new_cols = new_cols){
   df_total = data.table::rbindlist(dflist,fill = TRUE)
 }
 
+
 get_name_score <- function(df,name = "王子怡",mod = c("weekday","weekend","universe"),type,month_data){
   df <- df %>% 
-    filter(month == month_data)
+    filter(month == month_data) %>% 
+    mutate(mon = replace_na(mon, "Unknown"),
+           tue = replace_na(tue, "Unknown"),
+           wed = replace_na(wed, "Unknown"),
+           thur = replace_na(thur, "Unknown"),
+           fri = replace_na(fri, "Unknown"),
+           sat = replace_na(sat, "Unknown"),
+           sun = replace_na(sun, "Unknown"))
   if (mod == "weekday"){
     df <- df %>% 
       select(-all_of(c("sat","sun","weekend_type"))) %>% 
       filter(weekday_type == type)
     #row_level <- levels(factor(df$weekday_type))
-    
   }else if(mod == "weekend"){
     df <- df %>% 
       select(all_of(c("weekend_type","sat","sun"))) %>% 
@@ -86,17 +96,19 @@ get_name_score <- function(df,name = "王子怡",mod = c("weekday","weekend","un
   }
   df <- as.data.frame(df)
   score = 0
-  for (i in 1:ncol(df)){
-    for (a in 1:nrow(df)) {
-      if (is.na(df[a,i])){
-        score_temp = score + 0
-        score = score_temp
-      }else if(str_detect(df[a,i],name) == TRUE){
-        score_temp = score + 1
-        score = score_temp
-      } else {
-        score_temp = score + 0
-        score = score_temp
+  if (nrow(df)== 0) {
+    score = 0
+  } else{
+    for (i in 1:ncol(df)){
+      for (a in 1:nrow(df)) {
+        #print(paste("we are in",mod,type,month_data,df[a,i]))
+        if (str_detect(df[a,i],name) == TRUE){
+          score_temp = score + 1
+          score = score_temp
+        } else {
+          score_temp = score + 0
+          score = score_temp
+        }
       }
     }
   }
@@ -150,7 +162,7 @@ ui <- fluidPage(
                      tableOutput("selftable")
             ),
             tabPanel(title = "月排行榜",
-                     plotOutput("rankplot")
+                     plotlyOutput("rankplot")
             ),
             tabPanel(title = "具体数据", 
                      DTOutput("tables")
@@ -218,23 +230,24 @@ server <- function(input, output) {
         arrange(-value)
     })
     
-    output$rankplot <- renderPlot({
+    output$rankplot <- renderPlotly({
       df <- rank_all()
       data_summary <- df %>%
         group_by(id, month) %>%
         summarize(total_value = sum(value)) %>%
         filter(total_value != 0) %>% 
-        arrange(desc(total_value), desc(month))
-      
+        arrange(desc(total_value))
+      #options(repr.plot.width = 1024, repr.plot.height =1024)
       # 绘制条形图
-      ggplot(data_summary, aes(x = total_value, y = month, fill = id)) +
+      p <- ggplot(data_summary, aes(x = total_value, y = month, fill = id)) +
         geom_bar(stat = "identity", position = "dodge") +
         geom_text(aes(label = ifelse(total_value == 0, "", id)), position = position_dodge(width = 0.9), 
                   vjust = -0.5) +
         labs(x = "Value", y = "Month", fill = "ID") +
-        theme_bw()
-      
-      
+        theme_bw()+
+        theme(text = element_text(hjust = 0.5))
+      p <- plotly_build(p) 
+      return(p)
     })
     
     output$tables <-renderDT({
@@ -243,8 +256,8 @@ server <- function(input, output) {
     })
     output$aboutme <- renderText({
       paste0("本应用目前由HBSig开发，旨在对每月及历史排班工作量进行可视化和数据分析，
-             以供HBSig内部成员对于自身每月工作量进行评估和参考，数据来源于公开可获取数据，
-             对于原始数据存在的谬误，亦如实呈现在分析结果中。")
+             以供HBSig内部成员对于自身每月工作量进行评估和参考，数据来源于公开可获取数据（其中1月层流白班缺失），
+             由于算法的缺陷，节假日非周末白班会计算到连班中，对于原始数据存在的谬误（如原表格中出现错别字导致名字无法正确识别），亦如实呈现在分析结果中。")
     })
 }
 
