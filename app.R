@@ -192,6 +192,11 @@ server <- function(input, output) {
     withProgress(message = 'Calculating ...',
                  detail = 'This may take a while...', value = 1, {
                    
+    if (input$name_id %in% normal_students){
+      normal_students <- normal_students
+    }else {
+      normal_students <- input$name_id
+    }               
     rank_df <- list()
     for (name_id in normal_students) {
       weekday_summary <- week_summary(batch_table(),name_id = name_id,mod ="weekday" ,
@@ -231,7 +236,8 @@ server <- function(input, output) {
     output$selftable <- renderTable({
       df <- personal_table() %>% 
         select(-id) %>% 
-        arrange(-value)
+        arrange(-value) %>% 
+        filter(value != 0)
     })
     
     output$rankplot <- renderPlotly({
@@ -256,7 +262,8 @@ server <- function(input, output) {
     
     output$tables <-renderDT({
       df <- rank_all() %>% 
-        arrange(-value)
+        arrange(-value) %>% 
+        filter(value != 0)
     })
     output$aboutme <- renderText({
       paste0("本应用目前由HBSig开发，旨在对每月及历史排班工作量进行可视化和数据分析，
