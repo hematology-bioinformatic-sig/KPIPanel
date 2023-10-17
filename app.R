@@ -14,12 +14,14 @@ library(dplyr)
 library(ggplot2)
 library(stringr)
 library(tidyr)
-library(showtext)
+#library(showtext)
 library(DT)
 #library(forcats)
 library(janitor)
 library(plotly)
-showtext_auto(enable = TRUE)
+library(bslib)
+library(thematic)
+#showtext_auto(enable = TRUE)
 #i=1
 #vector_list <- list(agust$mon,agust$tue,agust$wed,agust$thur,agust$fri,agust$sat,agust$sun)
 #students <- c()
@@ -138,6 +140,12 @@ week_summary <- function(batch_table,name_id,mod,month_data_list,types){
 
 # Define UI for application that draws a histogram
 ui <- fluidPage(
+  
+  theme = bs_theme(
+    bootswatch = "journal",
+    base_font = font_google("Inter"),
+    navbar_bg = "#25443B"
+  ),
 
     # Application title
     titlePanel("The KPI Panel in Hematology"),
@@ -151,24 +159,43 @@ ui <- fluidPage(
             selectInput("month_id",
                       "Which month you want to know:",
                       month_list,
-                      "sept")
+                      "oct")
         ),
 
         # Show a plot of the generated distribution
         mainPanel(
           tabsetPanel(
             tabPanel(title = "个人面板",
-                     plotOutput("distPlot"),
-                     tableOutput("selftable")
+                     card(
+                       full_screen = TRUE,
+                       card_header("基本信息"),
+                       card_body(plotOutput("distPlot")),
+                       card_footer(tableOutput("selftable"))
+                       
+                     )
             ),
             tabPanel(title = "月排行榜",
-                     plotlyOutput("rankplot")
+                     card(
+                       full_screen = TRUE,
+                       card_header("排行榜单"),
+                       card_body(plotlyOutput("rankplot"))
+                     )
             ),
             tabPanel(title = "具体数据", 
-                     DTOutput("tables")
+                     card(
+                       full_screen = TRUE,
+                       card_header("详细数据汇总"),
+                       card_body(DTOutput("tables"))
+                     )
+                     
             ),
             tabPanel(title = "关于我",
-                     textOutput("aboutme"))
+                     card(
+                       full_screen = TRUE,
+                       card_header("数据来源与说明"),
+                       card_body(textOutput("aboutme"))
+                     )
+                     )
           )
           #plotOutput("distPlot"),
            #plotOutput("rankplot"),
@@ -179,6 +206,7 @@ ui <- fluidPage(
 
 # Define server logic required to draw a histogram
 server <- function(input, output) {
+  thematic::thematic_shiny()
   
   batch_table <- reactive({
     Batch_hospital_table("data/",new_cols = new_cols)
